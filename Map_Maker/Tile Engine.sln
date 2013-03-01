@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tile Engine", "Tile Engine\Tile Engine\Tile Engine.csproj", "{5E2FF0FF-7F3C-472F-BBE7-4815DD1FC251}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tile EngineContent", "Tile Engine\Tile EngineContent\Tile EngineContent.contentproj", "{0FC83825-371A-4DC6-A1DA-D6F2B0866AA4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5E2FF0FF-7F3C-472F-BBE7-4815DD1FC251}.Debug|x86.ActiveCfg = Debug|x86
+		{5E2FF0FF-7F3C-472F-BBE7-4815DD1FC251}.Debug|x86.Build.0 = Debug|x86
+		{5E2FF0FF-7F3C-472F-BBE7-4815DD1FC251}.Release|x86.ActiveCfg = Release|x86
+		{5E2FF0FF-7F3C-472F-BBE7-4815DD1FC251}.Release|x86.Build.0 = Release|x86
+		{0FC83825-371A-4DC6-A1DA-D6F2B0866AA4}.Debug|x86.ActiveCfg = Debug|x86
+		{0FC83825-371A-4DC6-A1DA-D6F2B0866AA4}.Release|x86.ActiveCfg = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
