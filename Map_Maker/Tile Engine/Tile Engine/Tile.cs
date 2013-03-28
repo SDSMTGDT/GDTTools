@@ -16,10 +16,15 @@ namespace Tile_Engine
 		{
 			public int type;
 			public int slope;
-			public tileValues(int tiletype, int slopemap)
+			public int[] rotation;
+			public tileValues(int tiletype, int slopemap, int id90, int id180, int id270)
 			{
 				this.type = tiletype;
 				this.slope = slopemap;
+				rotation = new int[3];
+				this.rotation[0] = id90;
+				this.rotation[1] = id180;
+				this.rotation[2] = id270;
 			}
 		}
 
@@ -34,6 +39,7 @@ namespace Tile_Engine
 		static public int HeightTileOffset{ get; set; }
 		static public int MaxTileNum{ get; set; }
 		static public int numTiles{ get; set; }
+		static public bool hashGenerated{ get; set;}
 
 		static public Dictionary<int, tileValues> tilesetMap;
 
@@ -50,6 +56,24 @@ namespace Tile_Engine
             return new Rectangle(tileX * tileWidth, tileY * tileHeight, tileWidth, tileHeight);
         }
 
+		static public int GetTileType(int tileIndex)
+		{
+			return tilesetMap[tileIndex].type;
+		}
+
+		static public int GetTileIndex(int tileIndex, int rotation)
+		{
+			if(rotation == 0)
+				return tileIndex;
+			else
+				return tilesetMap[tileIndex].rotation[rotation - 1];
+		}
+
+		static public int GetTileSlopeMap(int tileIndex)
+		{
+			return tilesetMap[tileIndex].slope;
+		}
+
 		static public void genTileHash(string path)
 		{
 
@@ -57,7 +81,7 @@ namespace Tile_Engine
 
 			// Data aquasition control variable
 			int dir = -1;
-			bool generate = true; // list generation control
+			hashGenerated = false; // list generation control
 
 			StreamReader sr = null; // File stream reader object
 
@@ -87,7 +111,7 @@ namespace Tile_Engine
 							{
 								dir = 2;
 							}
-							else if(s.IndexOf("KEY:VALUE PAIRS") > -1)
+							else if(s.IndexOf("KEY:VALUES PAIRS") > -1)
 							{
 								dir = 3;
 							}
@@ -101,8 +125,12 @@ namespace Tile_Engine
 						}
 					}
 				}
+				hashGenerated = true;
 			}	
-			catch{};	
+			catch
+			{
+				Console.WriteLine("DID NOT GENERATE TILESET MAPPING");
+			};	
 		}
 
 		// Parse out the current file read line
@@ -126,7 +154,7 @@ namespace Tile_Engine
 						{
 							tilesetMap = new Dictionary<int,tileValues>(int.Parse(tokens[1]));
 							for(int k = 0; k < tilesetMap.Count; k++)
-								tilesetMap[k] = new tileValues(-1, -1);
+								tilesetMap[k] = new tileValues(-1, -1, -1, -1, -1);
 
 							numTiles = int.Parse(tokens[1]);
 						}
@@ -143,8 +171,12 @@ namespace Tile_Engine
 							type = 2;
 						else if(tokens[1].CompareTo("scenery") == 0)
 							type = 3;
-
-						tilesetMap[int.Parse(tokens[0])] = new tileValues(type, int.Parse(tokens[2]));
+						if(type != 3)
+							tilesetMap[int.Parse(tokens[0])] = new tileValues(type, int.Parse(tokens[2]),
+																int.Parse(tokens[3]), int.Parse(tokens[4]), int.Parse(tokens[5]));
+						else
+							tilesetMap[int.Parse(tokens[0])] = new tileValues(type, int.Parse(tokens[2]),
+															int.Parse(tokens[3]), int.Parse(tokens[4]), -1);
 						
 						break;
 

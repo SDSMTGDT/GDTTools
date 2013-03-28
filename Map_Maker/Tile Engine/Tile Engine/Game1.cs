@@ -20,7 +20,6 @@ using Microsoft.Xna.Framework.Media;
 /// Mapping Code modified from Kurt Jaegers 
 /// 
 
-
 namespace Tile_Engine
 {
     /// <summary>
@@ -71,6 +70,9 @@ namespace Tile_Engine
 		int ShowEvents = 0;
 		int view = 0;
 		int preview;
+		bool walkable = true;
+		int slopeMap = -1;
+		int tileType = 0;
 
 		const int ViewFrames = 3;
 
@@ -90,6 +92,7 @@ namespace Tile_Engine
 		Texture2D Flatframe;
 		Texture2D charStart;
 		Texture2D WireframeView;
+		Texture2D NoWalk;
 
 		// Magnifiying glass image offset
 		int MagOffset = 25;
@@ -185,6 +188,8 @@ namespace Tile_Engine
 
 			// Set Level Read content manager and Saved State
 			ReadLevel.content = Content;
+			ReadLevel.graphicsDevice = graphics.GraphicsDevice;
+
 			SaveLevel.saved = true;
 
 			// Initialize the GUI Manager
@@ -232,6 +237,7 @@ namespace Tile_Engine
 			KeyBoardController.CharacterRight = Keys.Right;
 			KeyBoardController.ChangeModes = Keys.M;
 			KeyBoardController.ViewKey = Keys.V;
+			KeyBoardController.walkableKey = Keys.W;
 
 		}
 
@@ -240,6 +246,7 @@ namespace Tile_Engine
 			// Gui object textures
 			trash = Content.Load<Texture2D>(@"Textures\GUIElements\trash");
 			MagGlass = Content.Load<Texture2D>(@"Textures\GUIElements\MagGlass");
+			NoWalk = Content.Load<Texture2D>(@"Textures\GUIElements\donotwalk");
 
 			// Generate a new map
 			myMap = new TileMap(
@@ -324,7 +331,8 @@ namespace Tile_Engine
 		private void SetUpForms()
 		{
 		
-			setbox = new Settings(myMap.mapWidth, myMap.mapHeight, Tile.MaxTileNum, myMap.Layers, tilesetfile, Tile.tileWidth, Tile.tileHeight);
+			setbox = new Settings(myMap.mapWidth, myMap.mapHeight, Tile.MaxTileNum, myMap.Layers, tilesetfile, Tile.tileWidth, Tile.tileHeight,
+									walkable, slopeMap, tileType);
 			autbox = new AuthorsBox();
 			funcbox = new FuncBox(Events);
 			keybox = new KeyboardBox(KeyBoardController.trashKey.ToString(), KeyBoardController.magnifyKey.ToString(), 
@@ -335,7 +343,8 @@ namespace Tile_Engine
 									 KeyBoardController.hiddenKey.ToString(),
 									 KeyBoardController.upKey.ToString(), KeyBoardController.downKey.ToString(),
 									 KeyBoardController.leftKey.ToString(), KeyBoardController.rightKey.ToString(),
-									 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString());
+									 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString(),
+									 KeyBoardController.walkableKey.ToString());
 
 			charbox = new CharacterBox(vlad.spName, KeyBoardController.CharacterUp.ToString(), KeyBoardController.CharacterDown.ToString(),
 										KeyBoardController.CharacterLeft.ToString(), KeyBoardController.CharacterRight.ToString(),
@@ -478,9 +487,6 @@ namespace Tile_Engine
 				if(ks.IsKeyDown(Keys.D))
 					debcheck = !debcheck;
 
-				if(ks.IsKeyDown(Keys.R))
-					myMap.RotateMapClockwise(true);
-
 				if(ks.IsKeyDown(Keys.LeftControl) || ks.IsKeyDown(Keys.RightControl) || fastIterate)
 				{
 					#region CtrlKeys
@@ -492,6 +498,10 @@ namespace Tile_Engine
 					else if (ks.IsKeyDown(KeyBoardController.loadKey))
 					{
 						this.gui.load = true;
+					}
+					else if (ks.IsKeyDown(Keys.R))
+					{
+						myMap.RotateMapClockwise(true);
 					}
 					else if (ks.IsKeyDown(KeyBoardController.ChangeModes))
 					{
@@ -505,6 +515,10 @@ namespace Tile_Engine
 					else if(gui.trash)
 					{
 						layTrash = !layTrash;
+					}
+					else if(ks.IsKeyDown(KeyBoardController.walkableKey))
+					{
+						walkable = !walkable;
 					}
 					else if(ks.IsKeyDown(KeyBoardController.ViewKey))
 					{
@@ -567,6 +581,10 @@ namespace Tile_Engine
 						SetUpSelection(gui.selectionSize);
 					}
 					#endregion					
+				}
+				else if (ks.IsKeyDown(Keys.R))
+				{
+					myMap.RotateMapClockwise(false);
 				}
 				else if (ks.IsKeyDown(KeyBoardController.coordsKey))
 				{
@@ -804,6 +822,8 @@ namespace Tile_Engine
 				if(ReadLevel.LoadLevel())
 				{	
 					// Change parameters after load
+					tilesetfile = ReadLevel.TILESETFILE;
+					tilesetdatafile = ReadLevel.TILESETFILE.Substring(0, ReadLevel.TILESETFILE.LastIndexOf('.')) + ".meta";
 					Tile.TileSetTexture = ReadLevel.TILESET;
 					Tile.tileWidth = ReadLevel.TILEWIDTH;
 					Tile.tileHeight = ReadLevel.TILEHEIGHT;
@@ -811,6 +831,7 @@ namespace Tile_Engine
 					Tile.TileStepY = ReadLevel.TILESTEPY;
 					Tile.HeightTileOffset = ReadLevel.HEIGHTTILEOFFSET;
 					Tile.OddRowXOffset = ReadLevel.ODDROWOFFSETX;
+					Tile.genTileHash(tilesetdatafile);
 
 					// Change to the new map data
 					myMap.ChangeDataSets(ReadLevel.Rows, ReadLevel.SLOPEMAP);
@@ -849,9 +870,19 @@ namespace Tile_Engine
 				SaveLevel.Notes = autbox.notes;
 				SaveLevel.Events.AddRange(Events);
 
+				// Reorient the map
+				for(int i = 0; i < 4; i++)
+				{
+					if(myMap.rotation == 0)
+						break;
+					else
+						myMap.RotateMapClockwise(true);
+				}
+
 				// Write data to file
 				SaveLevel.write();
 				SaveLevel.saved = true;
+
 				// Clear out the save data
 				SaveLevel.Rows.Clear(); 
 				SaveLevel.Events.Clear();
@@ -881,8 +912,7 @@ namespace Tile_Engine
 			}
 
 			// Left button press contols
-			#region LeftButton	
-					
+			#region LeftButton		
 
 			// Debounce the button
 			if(mouseStateCurrent.LeftButton == ButtonState.Pressed)
@@ -899,12 +929,6 @@ namespace Tile_Engine
 				{
 					SaveLevel.saved = false;
 
-					// Determine if the current tile is a height tile or not
-					uint[] myuint = new uint[1];
-					int tileY = gui.currentTile / (Tile.TileSetTexture.Width / Tile.tileWidth);
-					int	tileX = gui.currentTile % (Tile.TileSetTexture.Width / Tile.tileWidth);
-					Tile.TileSetTexture.GetData<uint>(0, new Rectangle(tileX * Tile.tileWidth + (int)(Tile.tileWidth * 0.5f) , tileY * Tile.tileHeight + (int)(Tile.tileHeight * 0.45), 1, 1), myuint, 0, 1);
-					
 					#region Gui Change
 					// Increase or decrease the camera zoom
 					if(gui.magnify)
@@ -973,26 +997,24 @@ namespace Tile_Engine
 							{
 								try
 								{
-									if(setbox.type == 1)
+									if(tileType == 1)
 									{
 										myMap.Rows[mouseY].Columns[mouseX].AddBaseTile(gui.currentTile);		
 									}
-									else if(setbox.type == 2)
+									else if(tileType == 2)
 									{
 										myMap.Rows[mouseY].Columns[mouseX].AddHeightTile(gui.currentTile);		
 									}
-									else if(setbox.type == 3)
+									else if(tileType == 3)
 									{
 										myMap.Rows[mouseY].Columns[mouseX].AddTopperTile(gui.currentTile);
 									}
-									else if(setbox.type == 4)
+									else if(tileType == 4)
 									{}
 									
-									else
+									else if(Tile.hashGenerated)
 									{
-										Tile.tileValues tileKeeper = Tile.tilesetMap[gui.currentTile];
-
-										switch(tileKeeper.type)
+										switch(Tile.GetTileType(gui.currentTile))
 										{
 											case 0:
 												myMap.Rows[mouseY].Columns[mouseX].AddBaseTile(gui.currentTile);
@@ -1010,10 +1032,17 @@ namespace Tile_Engine
 												break;
 										}
 
-										myMap.Rows[mouseY].Columns[mouseX].SlopeMap = tileKeeper.slope;
-										myMap.Rows[mouseY].Columns[mouseX].walkable = (setbox.walkable == 0 ? true : false);
-									
-										/*
+										myMap.Rows[mouseY].Columns[mouseX].SlopeMap = Tile.GetTileSlopeMap(gui.currentTile);
+										myMap.Rows[mouseY].Columns[mouseX].walkable = walkable;
+									}
+									else
+									{
+										// Determine if the current tile is a height tile or not
+										uint[] myuint = new uint[1];
+										int tileY = gui.currentTile / (Tile.TileSetTexture.Width / Tile.tileWidth);
+										int tileX = gui.currentTile % (Tile.TileSetTexture.Width / Tile.tileWidth);
+										Tile.TileSetTexture.GetData<uint>(0, new Rectangle(tileX * Tile.tileWidth + (int)(Tile.tileWidth * 0.5f), tileY * Tile.tileHeight + (int)(Tile.tileHeight * 0.45), 1, 1), myuint, 0, 1);
+					
 										// Add height tile
 										if (myuint[0] != 0)
 										{
@@ -1027,12 +1056,10 @@ namespace Tile_Engine
 											else
 												myMap.Rows[mouseY].Columns[mouseX].AddTopperTile(gui.currentTile);
 										}
-										*/
-
+									
+										myMap.Rows[mouseY].Columns[mouseX].SlopeMap = slopeMap;
+									
 									}
-									/*
-									myMap.Rows[mouseY].Columns[mouseX].SlopeMap = setbox.slope - 1;
-									*/
 								}
 								catch
 								{
@@ -1084,7 +1111,9 @@ namespace Tile_Engine
 			if(gui.settings)
 			{
 				setbox.Dispose();
-				setbox = new Settings(myMap.mapWidth, myMap.mapHeight, Tile.MaxTileNum, myMap.Layers, tilesetfile, Tile.tileWidth, Tile.tileHeight);
+				setbox = new Settings(myMap.mapWidth, myMap.mapHeight, Tile.MaxTileNum, myMap.Layers, tilesetfile, 
+										Tile.tileWidth, Tile.tileHeight,
+										walkable, slopeMap, tileType);
 				setbox.Show();
 				setbox.FormClosed += new System.Windows.Forms.FormClosedEventHandler(setbox_FormClosed);
 			}
@@ -1114,7 +1143,8 @@ namespace Tile_Engine
 										 KeyBoardController.hiddenKey.ToString(),
 										 KeyBoardController.upKey.ToString(), KeyBoardController.downKey.ToString(),
 										 KeyBoardController.leftKey.ToString(), KeyBoardController.rightKey.ToString(),
-										 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString());
+										 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString(),
+										 KeyBoardController.walkableKey.ToString());
 				keybox.Show();
 				keybox.FormClosed += new System.Windows.Forms.FormClosedEventHandler(keybox_FormClosed);
 			}
@@ -1153,8 +1183,16 @@ namespace Tile_Engine
 					Tile.TileSetTexture = Texture2D.FromStream(GraphicsDevice, textureread);
 					tilesetfile = setbox.tilefile;
 				}
+
+				tilesetdatafile = tilesetfile.Substring(0, tilesetfile.LastIndexOf('.')) + ".meta";
+
+
 				Tile.tileWidth = setbox.tileWid;
 				Tile.tileHeight = setbox.tileHei;
+				Tile.genTileHash(tilesetdatafile);
+				walkable = setbox.walkable;
+				slopeMap = setbox.slope - 1;
+				tileType = setbox.type;
 
 				drawratio = new Vector2(64.0f / (float)Tile.tileWidth, 64.0f / (float)Tile.tileHeight);
 
@@ -1299,6 +1337,8 @@ namespace Tile_Engine
 				catch { };
 				try { KeyBoardController.ChangeModes= (Keys)Enum.Parse(typeof(Keys), keybox.Shortcuts.playKey); }
 				catch { };
+				try { KeyBoardController.walkableKey = (Keys)Enum.Parse(typeof(Keys), keybox.Shortcuts.walkKey); }
+				catch { };
 			}
 			else
 			{
@@ -1370,6 +1410,8 @@ namespace Tile_Engine
 			// Local sprite map point
 			Point vladMapPoint = myMap.WorldToMapCell(new Point((int)vlad.Position.X, (int)vlad.Position.Y));
 
+			int curRotation = myMap.rotation;
+
 			#region DrawMap
             for(int y = 0; y < squaresDown; y++)
             {
@@ -1421,7 +1463,7 @@ namespace Tile_Engine
 								(this.view == 1 ? Color.White * 0.4f : Color.White), // Draw in original colors
 								0.0f, // No Rotation 
 								Vector2.Zero, // 0, 0 origin
-								drawratio,// No scaling
+								1.0f,// No scaling
 								SpriteEffects.None, // No flips
 								1.0f - basecount); // Starting layer
 
@@ -1439,7 +1481,7 @@ namespace Tile_Engine
 								// Where on the 'screen' to draw a tile, use a row offset for odd row hexes
 								camera.WorldtoScreen(
 										new Vector2((mapx * Tile.TileStepX) + rowOffset,
-														mapy * Tile.TileStepY + Tile.tileHeight / 2)),
+														mapy * Tile.TileStepY + 32)),
 
 								// Determine what type of tile to draw
 								null,//Tile.GetSourceRectangle(tileID),
@@ -1447,7 +1489,7 @@ namespace Tile_Engine
 								(myMap.Rows[mapy].Columns[mapx].walkable) ? Color.White * 1.5f : Color.DarkGray, // Draw in original colors
 								0.0f, // No Rotation 
 								Vector2.Zero, // 0, 0 origin
-								drawratio,// No scaling
+								1.0f,// No scaling
 								SpriteEffects.None, // No flips
 								1.0f - basecount); // Starting layer
 
@@ -1471,7 +1513,7 @@ namespace Tile_Engine
 													mapy * Tile.TileStepY)),
 
 							// Determine what type of tile to draw
-							Tile.GetSourceRectangle(tileID),
+							Tile.GetSourceRectangle(Tile.GetTileIndex(tileID, curRotation)),
 
 							Color.White, // Draw in original colors
 							0.0f, // No Rotation 
@@ -1516,7 +1558,7 @@ namespace Tile_Engine
 							0.0f, // No Rotation
 							Vector2.Zero, // Origin is not moved
 
-							drawratio, // scaling
+							1.0f, // scaling
 
 							SpriteEffects.None, // No flips
 
@@ -1547,7 +1589,7 @@ namespace Tile_Engine
 								0.0f, // No Rotation
 								Vector2.Zero, // Origin is not moved
 
-								drawratio, // scaling
+								1.0f, // scaling
 
 								SpriteEffects.None, // No flips
 
@@ -1572,7 +1614,7 @@ namespace Tile_Engine
 									mapy * Tile.TileStepY - (heightRow * Tile.HeightTileOffset))),
 
 							// Determine what type of tile to draw
-							Tile.GetSourceRectangle(tileID),
+							Tile.GetSourceRectangle(Tile.GetTileIndex(tileID, curRotation)),
 
 							Color.White, // Draw in original colors
 							0.0f, // No Rotation
@@ -1623,7 +1665,7 @@ namespace Tile_Engine
 							Color.White, // Draw in original colors
 							0.0f, // No rotation
 							Vector2.Zero, // Origin is not moved
-							drawratio,
+							1.0f,
 							SpriteEffects.None, // No flips
 
 							// Increase the depthoffset by 0.0000001f every height we add
@@ -1654,7 +1696,7 @@ namespace Tile_Engine
 							(myMap.Rows[mapy].Columns[mapx].walkable) ? Color.White * 1.5f : Color.DarkGray, // Draw in original colors
 							0.0f, // No rotation
 							Vector2.Zero, // Origin is not moved
-							drawratio,
+							1.0f,
 							SpriteEffects.None, // No flips
 
 							// Increase the depthoffset by 0.0000001f every height we add
@@ -1681,7 +1723,7 @@ namespace Tile_Engine
 											(mapy * Tile.TileStepY) - (heightRow * Tile.HeightTileOffset))),
 
 								// Determine what type of tile to draw
-								Tile.GetSourceRectangle(tileID),
+								Tile.GetSourceRectangle(Tile.GetTileIndex(tileID, curRotation)),
 
 								Color.White, // Draw in original colors
 								0.0f, // No rotation
@@ -1712,8 +1754,10 @@ namespace Tile_Engine
                 	{
 					
 					spriteBatch.DrawString(pericles6, (x + firstX).ToString() + ", " + (y + firstY).ToString(),
+											// REMOVE + 0.5f
 											new Vector2((x * Tile.TileStepX) - offsetX + rowOffset + baseOffsetX + 24,
-											(y * Tile.TileStepY) - offsetY + baseOffsetY + 48), Color.White, 0f, Vector2.Zero,
+											// REMOVE + 4f
+											(y* Tile.TileStepY) - offsetY + baseOffsetY + 48), Color.White, 0f, Vector2.Zero,
 											1.0f, SpriteEffects.None, 0.01f);  
 					}
 				}
@@ -1789,8 +1833,6 @@ namespace Tile_Engine
 			{
 				heightCount = 0;
 			}
-
-
 			
 			// If the magnifying glass tool is selected
 			if(gui.magnify)
@@ -1835,10 +1877,6 @@ namespace Tile_Engine
 					catch //If selection leaves map
 					{}
 				}
-				if(debcheck)
-				{
-					debcheck = false;
-				}
 
 				// If the trash tool is selected
 				if (gui.trash)
@@ -1858,8 +1896,6 @@ namespace Tile_Engine
 									SpriteEffects.None,
 									(trashdepthOffset == 0.0 ? mousedepthOffset : trashdepthOffset) - (0.001f * selMax));
 				}
-				
-
 
 				for(int sel = 0; sel < gui.selectionSize*gui.selectionSize; sel++)
 				{
@@ -1892,7 +1928,7 @@ namespace Tile_Engine
 					else
 						selectionOffset = 0;
 					
-					if(heightCount != 0)
+					if(heightCount != 0 && (layTrash ? heightCount == selMax : true))
 						spriteBatch.Draw(activeArea,
 							camera.WorldtoScreen(
 									new Vector2(
@@ -1903,7 +1939,7 @@ namespace Tile_Engine
 									Color.White * 0.3f,
 									0.0f,
 									Vector2.Zero,
-									drawratio,
+									1.0f,
 									SpriteEffects.None,
 									0.001f);
 					
@@ -1917,16 +1953,34 @@ namespace Tile_Engine
 										((hilightPoint.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset, // X placement
 										((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) - Tile.HeightTileOffset - // Y placement
 												Tile.HeightTileOffset * heightCount)),
-									Tile.GetSourceRectangle(gui.currentTile),
+									Tile.GetSourceRectangle(Tile.GetTileIndex(gui.currentTile, curRotation)),
 									Color.White,
 									0.0f,
 									Vector2.Zero,
 									drawratio,
 									SpriteEffects.None,
 									mousedepthOffset - (0.0001f * heightCount));
+
+
+						if(!walkable)
+						{
+							// Draw the selected tile at the max height of the current tile
+							spriteBatch.Draw(NoWalk,
+								camera.WorldtoScreen(
+										new Vector2(
+											((hilightPoint.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset, // X placement
+											((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) - Tile.HeightTileOffset - // Y placement
+													Tile.HeightTileOffset * heightCount)),
+										null,
+										Color.White,
+										0.0f,
+										Vector2.Zero,
+										1.0f,
+										SpriteEffects.None,
+										0.00015f );
+						}	
 					}
 				}
-
 			}
 
 			#endregion
@@ -2043,7 +2097,7 @@ namespace Tile_Engine
 			#endregion
 
 			// Draw the gui
-			gui.Draw(spriteBatch, baseOffsetX, baseOffsetY, camera.Zoom);
+			gui.Draw(spriteBatch, baseOffsetX, baseOffsetY, camera.Zoom, myMap.rotation);
 
 			if(!makemap)
 				vlad.Draw(spriteBatch, 0, -myMap.GetOverallHeight(vlad.Position));
@@ -2099,6 +2153,14 @@ namespace Tile_Engine
 					SaveLevel.Author = autbox.name;
 					SaveLevel.Date = autbox.date;
 					SaveLevel.Notes = autbox.notes;
+
+					for(int i = 0; i < 4; i++)
+					{
+						if(myMap.rotation == 0)
+							break;
+						else
+							myMap.RotateMapClockwise(true);
+					}
 					
 					// Write data to file
 					SaveLevel.write();

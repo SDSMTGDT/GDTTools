@@ -25,8 +25,8 @@ namespace Tile_Engine
 		private int Rotation;
 		public int rotation
 		{
-			get{ return Rotation; } 
-			set{ value = Rotation % 4;}
+			get{ return Rotation; }
+			set { Rotation = value % 4; }
 		}
 		
 		// Exchange level data sets
@@ -58,8 +58,8 @@ namespace Tile_Engine
         {
 			this.mouseMap = mouseMap;
 			this.slopeMaps = slopeMap;
-			mapHeight = 100;
-			mapWidth = 100;
+			mapHeight = 99;
+			mapWidth = 50;
 			Rotation = 0;
 			for(int y = 0; y < mapHeight; y++)
 			{
@@ -292,19 +292,38 @@ namespace Tile_Engine
 		
 		public void RotateMapClockwise(bool direction)
 		{
+			int height = mapHeight - 1;
+			int width = mapWidth -1;
 			List<MapRow> newRow = new List<MapRow>();
 			
-			for (int row = 0; row < mapHeight; row++)
+			for(int row = 0; row < mapHeight; row++)
 			{
 				MapRow thisRow = new MapRow();
+				for(int col = 0; col < mapWidth; col++)
+					thisRow.Columns.Add(new MapCell(0));
+				newRow.Add(thisRow);
+			}
+
+			for(int row = 0; row < mapHeight; row++)
 				for (int col = 0; col < mapWidth; col++)
-				{
-					// r = -(r - h)
-					// c = r / 2 
-				}
-			}					
-			this.Rows.Clear();
+					if (col != width || (row % 2 == 0)) // Disallow rotation of odd tiles in final column
+					{
+						// Clockwise Rotation
+						if (direction) // Jab the system and rotate
+						{
+							newRow[2 * col + (row % 2)].Columns[width - (row + 1) / 2] = Rows[row].Columns[col];
+							this.rotation--;
+						}
+						// CounterClockwise Rotation
+						else // Mesh the system and rotate
+						{
+							newRow[height - (2 * col + (row % 2))].Columns[row / 2] = Rows[row].Columns[col];
+							this.rotation++;
+						}
+					}
+			Rows.Clear();
 			Rows.AddRange(newRow);
+			Console.WriteLine(" Rotation: " + this.rotation);
 		}			
     }
 }

@@ -34,8 +34,8 @@ namespace Tile_Engine
 			}
 			set
 			{
-				location = new Vector2(MathHelper.Clamp(value.X, 0f, worldWidth - ViewWidth),
-									   MathHelper.Clamp(value.Y, 0f, worldHeight - ViewHeight));
+				location = new Vector2(MathHelper.Clamp(value.X, 0f, worldWidth - ViewWidth + 200), // Remove + 200
+									   MathHelper.Clamp(value.Y, 0f, worldHeight - ViewHeight + 100)); // Remove + 100
 			}
 		}
 

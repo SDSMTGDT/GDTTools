@@ -22,7 +22,7 @@ namespace Tile_Engine
 		public int SMapWidth{ get; set; }
 		public int SMapHeight{ get; set; }
 		public int slope{ get; set;}
-		public int walkable { get; set; }
+		public bool walkable { get; set; }
 		public int type { get; set; }
 		public uint tileId;
 		public List<int> layers;
@@ -33,9 +33,8 @@ namespace Tile_Engine
 		public string tilefile;
 		public int tileWid;
 		public int tileHei;
-
 		
-		public Settings(int width, int height, int mTile, List<int> lay, string tilesetFile, int tWid, int tHei)
+		public Settings(int width, int height, int mTile, List<int> lay, string tilesetFile, int tWid, int tHei, bool twalk, int tslope, int ttype)
 		{
 			tilefile = tilesetFile;
 			tileWid = tWid;
@@ -44,6 +43,9 @@ namespace Tile_Engine
 			SMapWidth = width;
 			SMapHeight = height;
 			maxTile = mTile;
+			walkable = twalk;
+			slope = tslope + 1;
+			type = ttype;
 			InitializeComponent();
 		}
 
@@ -59,7 +61,7 @@ namespace Tile_Engine
 			walkableCombo = new ComboBox() { Left = 50, Top = 10 + 45 };
 			walkableCombo.Items.Add("Yes");
 			walkableCombo.Items.Add("No");
-			walkableCombo.SelectedIndex = 0;
+			walkableCombo.SelectedIndex = (walkable ? 0 : 1);
 			walkableCombo.DropDownStyle = ComboBoxStyle.DropDownList;
 
 			Label typelabel = new Label() { Text = "Force Tile Type", Left = 50, Top = 10 + 80, Height = 15};
@@ -69,7 +71,7 @@ namespace Tile_Engine
 			typeCombo.Items.Add("Height Tiles");
 			typeCombo.Items.Add("Topper Tiles");
 			typeCombo.Items.Add("Scenery Tiles");
-			typeCombo.SelectedIndex = 0;
+			typeCombo.SelectedIndex = type;
 			typeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
 
 			Tilepanel.Controls.Add(Tilesettings);
@@ -81,7 +83,6 @@ namespace Tile_Engine
 			Panel PicturePanel = new Panel() { Width = 200, Height = 200, Top = 150};
 			Label PictureLabel = new Label() {Text = "Slope Map Settings", Left = 50, Top = 10, Height = 15};
 			slopeCombo = new ComboBox() { Left = 50, Top = 10 + 20 };
-			slope = 0;
 			slopeCombo.Items.Add("None");
 			slopeCombo.Items.Add("Map 1");
 			slopeCombo.Items.Add("Map 2");
@@ -91,7 +92,7 @@ namespace Tile_Engine
 			slopeCombo.Items.Add("Map 6");
 			slopeCombo.Items.Add("Map 7");
 			slopeCombo.Items.Add("Map 8");
-			slopeCombo.SelectedIndex = 0;
+			slopeCombo.SelectedIndex = slope;
 			slopeCombo.DropDownStyle = ComboBoxStyle.DropDownList;
 
 			Image slopemaps = Image.FromFile(@"Content\Images\default_slopemaps.png");
@@ -256,7 +257,7 @@ namespace Tile_Engine
 			ok = true;
 			bool success = true;
 			string errstr = "";
-			walkable = walkableCombo.SelectedIndex;
+			walkable = (walkableCombo.SelectedIndex == 0);
 			type = typeCombo.SelectedIndex;
 			slope = slopeCombo.SelectedIndex;	
 			

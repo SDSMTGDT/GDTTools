@@ -103,7 +103,7 @@ namespace Tile_Engine
 		}
 
 		// Draw the current gui state
-		public void Draw(SpriteBatch sb, int xOffset, int yOffset, float zoom)
+		public void Draw(SpriteBatch sb, int xOffset, int yOffset, float zoom, int rotation)
 		{
 
 			// Draw the main overlay
@@ -171,7 +171,7 @@ namespace Tile_Engine
 			#region CurrentTile
 			sb.Draw(Tile.TileSetTexture,
 							currtileoffset,
-							Tile.GetSourceRectangle(currentTile),
+							Tile.GetSourceRectangle(Tile.GetTileIndex(currentTile, rotation)),
 							Color.White,
 							0.0f,
 							Vector2.Zero,
@@ -181,11 +181,12 @@ namespace Tile_Engine
 			#endregion
 
 			#region CurrentTileIndicator
-			Rectangle temptile = Tile.GetSourceRectangle(currentTile);
+			Rectangle temptile = Tile.GetSourceRectangle(Tile.GetTileIndex(currentTile, rotation));
 			Vector2 IndicatorPos = tileoffset + new Vector2(temptile.X, temptile.Y - tileSetView * (Math.Abs((int)ydiff))) * tileratio;
-			
+
 			if((IndicatorPos.Y - tileoffset.Y) < 256 && IndicatorPos.Y - tileoffset.Y >= 0)
-			sb.Draw(curTileIndicator,
+			{
+				sb.Draw(curTileIndicator,
 						IndicatorPos,
 						null,
 						Color.White * 0.4f,
@@ -194,6 +195,7 @@ namespace Tile_Engine
 						1 /zoom,
 						SpriteEffects.None,
 						0.0f);
+			}
 			else if((IndicatorPos.Y - tileoffset.Y ) > 192)
 				this.IterateSelectedSet(false, false);
 

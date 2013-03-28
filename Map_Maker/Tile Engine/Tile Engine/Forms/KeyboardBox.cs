@@ -32,10 +32,12 @@ namespace Tile_Engine
 			public string rightKey;
 			public string charKey;
 			public string playKey;
+			public string walkKey;
 
 			public KeyBoardShortcuts(string tk, string mk, string sk, string lk, string stk, string ak, 
 										string fk, string selk, string coordk, string eventk, string hidk,
-										string uk, string dk, string leftk, string rightk, string ck, string pk)
+										string uk, string dk, string leftk, string rightk, string ck, string pk,
+										string wk)
 			{
 				this.trashKey = tk;
 				this.magnifyKey = mk;
@@ -48,6 +50,7 @@ namespace Tile_Engine
 				this.coordsKey = coordk;
 				this.eventsKey = eventk;
 				this.hiddenKey = hidk;
+				this.walkKey = wk;
 				
 				this.upKey = uk;
 				this.downKey = dk;
@@ -62,9 +65,10 @@ namespace Tile_Engine
 		private bool showbox;
 		public KeyboardBox(string tk, string mk, string sk, string lk, string stk, string ak, string fk,
 							string selk, string coordk, string eventk, string hidk,
-							string uk, string dk, string leftk, string rightk, string ck, string pk)
+							string uk, string dk, string leftk, string rightk, string ck, string pk,
+							string wk)
 		{
-			Shortcuts = new KeyBoardShortcuts(tk, mk, sk, lk, stk, ak, fk, selk, coordk, eventk, hidk, uk, dk, leftk, rightk, ck, pk);
+			Shortcuts = new KeyBoardShortcuts(tk, mk, sk, lk, stk, ak, fk, selk, coordk, eventk, hidk, uk, dk, leftk, rightk, ck, pk, wk);
 			InitializeComponent();
 		}
 		void KeyboardBox_Load(object sender, System.EventArgs e)
@@ -117,11 +121,15 @@ namespace Tile_Engine
 			Label CharLabel = new Label(){ Text = "Character Settings", Top = 93, Left = 430, Height = 15 };
 			Label PlayLabel = new Label(){ Text = "Change Modes", Top = 113, Left = 430, Height = 15 };
 			Label PlayCtrl = new Label() { Text = "Ctrl +", Top = 113, Left = 550, Height = 15, Width = 40 };
+			Label WalkLabel = new Label() { Text = "Toggle Walkable", Top = 133, Left = 430, Height = 15 };
+			Label WalkCtrl = new Label() { Text = "Ctrl +", Top = 133, Left = 550, Height = 15, Width = 40 };
+			
 			TextBox CoordText = new TextBox() { Name = "Show Coordinates", Text = Shortcuts.coordsKey, Top = 33, Left = 590, Height = 15, Width = 40 };
 			TextBox EventsText = new TextBox() { Name = "Show Events", Top = 53, Text = Shortcuts.eventsKey, Left = 590, Height = 15, Width = 40 };
 			TextBox HiddenText = new TextBox() { Name = "Underground View", Top = 73, Text = Shortcuts.hiddenKey, Left = 590, Height = 15, Width = 40 }; 
 			TextBox CharText = new TextBox() { Name = "Character Settings", Top = 93, Text = Shortcuts.charKey, Left = 590, Height = 15, Width = 40 };
 			TextBox PlayText = new TextBox() { Name = "Play Mode", Top = 113, Text = Shortcuts.playKey, Left = 590, Height = 15, Width = 40 };
+			TextBox WalkText = new TextBox() { Name = "Toggle Walkable", Top = 133, Text = Shortcuts.walkKey, Left =  590, Height = 15, Width = 40 };
 
 			Button okButton = new Button(){ Text = "Ok", Top = 155, Left = 30};
 			okButton.Click += new EventHandler(okButton_Click);
@@ -154,6 +162,8 @@ namespace Tile_Engine
 			ShortcutPanel.Controls.Add(CharLabel);
 			ShortcutPanel.Controls.Add(PlayLabel);
 			ShortcutPanel.Controls.Add(PlayCtrl);
+			ShortcutPanel.Controls.Add(WalkLabel);
+			ShortcutPanel.Controls.Add(WalkCtrl);
 
 			ShortcutPanel.Controls.Add(TrashText);
 			ShortcutPanel.Controls.Add(MagText);
@@ -172,6 +182,7 @@ namespace Tile_Engine
 			ShortcutPanel.Controls.Add(LeftText);
 			ShortcutPanel.Controls.Add(RightText);
 			ShortcutPanel.Controls.Add(PlayText);
+			ShortcutPanel.Controls.Add(WalkText);
 
 			ShortcutPanel.Controls.Add(okButton);
 			ShortcutPanel.Controls.Add(cancelButton);
@@ -353,6 +364,9 @@ namespace Tile_Engine
 			}
 			else
 				checkKey += this.Shortcuts.playKey;
+
+			this.Shortcuts.walkKey = ((TextBox)this.Controls.Find("Toggle Walkable", true).ElementAt(0)).Text.ToUpper();
+
 
 			if(success)
 			{

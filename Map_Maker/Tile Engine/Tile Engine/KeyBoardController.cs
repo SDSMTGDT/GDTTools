@@ -32,5 +32,6 @@ namespace Tile_Engine
 		public static Keys CharacterRight;
 		public static Keys ChangeModes;
 		public static Keys ViewKey;
+		public static Keys walkableKey;
 	}
 }

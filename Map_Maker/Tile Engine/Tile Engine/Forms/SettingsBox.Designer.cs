@@ -42,8 +42,7 @@
 			this.Load += new System.EventHandler(this.Settings_Load);
 
 			this.ResumeLayout(false);
-			type = 0;
-			slope = 0;
+	
 		 
 
 		}

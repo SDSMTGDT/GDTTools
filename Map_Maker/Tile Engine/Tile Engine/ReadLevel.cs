@@ -13,6 +13,8 @@ namespace Tile_Engine
 	
 	class ReadLevel
 	{
+		static public GraphicsDevice graphicsDevice;
+	
 		// Parameters
 		static public Texture2D TILESET { get; set; }
 		static public Texture2D SLOPEMAP { get; set; }
@@ -24,12 +26,14 @@ namespace Tile_Engine
 		static public int HEIGHTTILEOFFSET { get; set; }
 		static public int MAPWIDTH { get; set; }
 		static public int MAPHEIGHT { get; set; }
+		static public string TILESETFILE { get; set; }
 
 		// Read path 
 		static public string filepath { get; set; }
 
 		// Read control variables
 		static bool bheight = false, bwidth = false;
+		static private bool fileRead = false;
 
 		// 2D list to store level data
 		public static List<MapRow> Rows = new List<MapRow>();
@@ -47,7 +51,7 @@ namespace Tile_Engine
 		private static TileSetData tileset = new TileSetData();
 
 		// Parse out the current file read line
-		public static void ParseLine(string line, int dir)
+		public static bool ParseLine(string line, int dir)
 		{
 			if (line.CompareTo("") != 0) // Skip empty lines
 			{
@@ -58,10 +62,51 @@ namespace Tile_Engine
 				switch (dir) // Data type control switching
 				{
 					case 0: // Tileset file path
-						TILESET = content.Load<Texture2D>(@line);
+						TILESETFILE = line;
+						try
+						{
+							try
+							{
+								TILESET = content.Load<Texture2D>(@line);
+							}
+							catch(Microsoft.Xna.Framework.Content.ContentLoadException ex)
+							{
+								string tempPath = filepath.Substring(0, filepath.LastIndexOf('\\')+1) + line;
+								FileStream textureread = File.Open(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+								TILESET = Texture2D.FromStream(graphicsDevice, textureread);
+							}
+						}
+						catch(Exception ex)
+						{
+							MessageBox.Show("Unable to open file: " + line + "\nInside directory: " + 
+												filepath.Substring(0, filepath.LastIndexOf('\\')+1) +
+												"\nOriginal Error Message: " + ex.Message);
+							return false;
+						}
+						
 						break;
+
 					case 1: // Slope map file path
-						SLOPEMAP = content.Load<Texture2D>(@line);
+						try
+						{
+							try
+							{
+								SLOPEMAP = content.Load<Texture2D>(@line);
+							}
+							catch (Microsoft.Xna.Framework.Content.ContentLoadException ex)
+							{
+								string tempPath = filepath.Substring(0, filepath.LastIndexOf('\\') + 1) + line;
+								FileStream textureread = File.Open(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+								SLOPEMAP = Texture2D.FromStream(graphicsDevice, textureread);
+							}
+						}
+						catch (Exception ex)
+						{
+							MessageBox.Show("Unable to open file: " + line + "\nInside directory: " +
+												filepath.Substring(0, filepath.LastIndexOf('\\') + 1) +
+												"\nOriginal Error Message: " + ex.Message);
+							return false;
+						}
 						break;
 
 					case 2: // Tile parameters
@@ -240,6 +285,8 @@ namespace Tile_Engine
 
 			}
 			else {} // If no read: undetermined, at current do nothing
+
+			return true;
 		}
 
 		// Begin reading the level data through the use of a dialog box		
@@ -262,8 +309,7 @@ namespace Tile_Engine
 			// If the file dialog worked correctly
 			if(openFileDialog1.ShowDialog() == DialogResult.OK)
 			{
-				try
-				{
+			
 					// If the file exists
 					if ((openFileDialog1.OpenFile() != null))
 					{
@@ -324,8 +370,18 @@ namespace Tile_Engine
 								else
 								{
 									// Parse out the current line
-									ParseLine(s, dir);
-
+									try
+									{
+									bool success = ParseLine(s, dir);
+									if(!success )
+										return false;
+									}
+									catch(Exception ex)
+									{ 
+										MessageBox.Show("Error in parsing File: " + filepath +
+														"Original Message: " + ex.Message);
+										return false; 
+									}
 									// If the list hasn't been generated AND the dimensions are known
 									if (generate && bwidth && bheight)
 									{
@@ -349,12 +405,7 @@ namespace Tile_Engine
 					}
 					else // read failure, file does not exists or won't open
 						return false;
-				}
-				catch( Exception ex) // Read failure, display error message
-				{
-					MessageBox.Show("Error: Could not read file from disk. Original error: " + ex.Message);
-					return false;
-				}
+
 			}
 			// Read failure Dialog box did not open correctly
 			else 
