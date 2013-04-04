@@ -163,19 +163,24 @@ namespace Tile_Engine
 							Vector2.Zero,
 							tileratio / zoom,
 							SpriteEffects.None,
-							0.0f);
+							0.00001f);
 							
 			#endregion
 
 			// Draw the current selected tile
 			#region CurrentTile
+
+			// Extract the dimension of the tile and find the scaling, specified by a larger height or width
+			Vector2 currtileDim = Tile.GetTileImageDimension(currentTile);
+			float currtileScale = Math.Max(currtileDim.X, currtileDim.Y);
+
 			sb.Draw(Tile.TileSetTexture,
 							currtileoffset,
 							Tile.GetSourceRectangle(Tile.GetTileIndex(currentTile, rotation)),
 							Color.White,
 							0.0f,
 							Vector2.Zero,
-							(0.75f * xguiScale)*(tileratio.X / tilescale) / zoom,
+							((0.75f * xguiScale)*(tileratio.X / tilescale) / zoom) / currtileScale,
 							SpriteEffects.None,
 							0.0f);
 			#endregion
@@ -192,7 +197,7 @@ namespace Tile_Engine
 						Color.White * 0.4f,
 						0.0f,
 						Vector2.Zero,
-						1 /zoom,
+						currtileDim / zoom,
 						SpriteEffects.None,
 						0.0f);
 			}
@@ -229,9 +234,56 @@ namespace Tile_Engine
 			else
 				row = (int)((y - (223 * yguiScale) + ybox *tileSetView) / (tileHeight * tileratio.X));
 
-			// Set current tile
-			currentTile = col + (row * curTileset.Width / (tileWidth)); 
+			if(Tile.hashGenerated)
+			{
+				int tempRow = (row * curTileset.Width / (tileWidth));
+				int currPosIndex = col + tempRow;
+				bool found = false;
 			
+				int i, j = 0;
+				for(i = 0; i < Tile.tilesetMap.Count; i++)
+				{
+					// Scenery Tiles are special
+					if(Tile.tilesetMap[i].type == 3)
+					{
+						var tile = Tile.tilesetMap[i];
+						for(int imagex = 0; imagex < tile.imageDim.X; imagex++)
+							for(int imagey = 0; imagey < tile.imageDim.Y; imagey++)
+								if(currPosIndex == (tile.imageIndex + imagex + imagey*10 ))
+								{
+									found = true;
+									currentTile = i;
+									break;
+								}
+
+						if(found)
+							break;
+
+					}
+				}
+				for(i = 0; i < Tile.tilesetMap.Count && !found; i++)
+				{
+					if(Tile.tilesetMap[i].type != 3)
+					{
+						if(Tile.tilesetMap[i].imageIndex == tempRow)
+						{
+							for(j = 0; j < 10; j++)
+							{
+								if(Tile.tilesetMap[i+j].imageIndex > (tempRow + col))
+									break;
+							}
+							break;
+						}
+					}
+				}
+			
+				// Set current tile
+				if(!found)
+					currentTile = i + j - 1;			
+			}
+			else
+				currentTile = col + (row * curTileset.Width / (tileWidth));
+
 			// Assure current state
 			ResetState();
 

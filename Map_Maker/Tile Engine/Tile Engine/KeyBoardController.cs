@@ -33,5 +33,6 @@ namespace Tile_Engine
 		public static Keys ChangeModes;
 		public static Keys ViewKey;
 		public static Keys walkableKey;
+		public static Keys cubeSpaceKey;
 	}
 }

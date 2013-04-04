@@ -5,16 +5,34 @@ using System.Text;
 
 namespace Tile_Engine
 {
+	struct SceneryTile
+	{
+		public int tileID;
+		public Microsoft.Xna.Framework.Vector2 cubePos;
+
+		public SceneryTile(int ID, Microsoft.Xna.Framework.Vector2 pos)
+		{
+			tileID = ID;
+			cubePos = pos;
+		}
+
+		public SceneryTile(int ID, float x, float y)
+		{
+			tileID = ID;
+			cubePos = new Microsoft.Xna.Framework.Vector2(x, y);
+		}
+	}
 	// Class to store data about a given 'cell'
     class MapCell
     {
-
 		// List variable to store the number of tiles in a given cell
 		public List<int> BaseTiles = new List<int>();
 		// List variable to store the heighten tiles in a given cell
 		public List<int> HeightTiles = new List<int>();
 		// List to hold tiles stacked upon heighten tiles
 		public List<int> TopperTiles = new List<int>();
+		// List to hold scenic tiles
+		public List<SceneryTile> SceneryTiles = new List<SceneryTile>();
 
 		// Bool to check if the tile is accesible
 		public bool walkable{ get; set;}
@@ -22,6 +40,9 @@ namespace Tile_Engine
 		// Holds the slope mapping of the current cell
 		public int SlopeMap{get; set;}
 
+		public int SlopeDivision{get; set;}
+
+		// Holds the explored state of cell
 		public bool Explored{get; set;}
 
         // Auto properties for tileId
@@ -78,6 +99,7 @@ namespace Tile_Engine
 		public void AddHeightTile(int tileID)
 		{
 			HeightTiles.Add(tileID);
+			SlopeDivision = Tile.GetTileSlopeIndex(tileID);
 		}
 
 		public void InsertHeightTile(int tileID)
@@ -118,9 +140,24 @@ namespace Tile_Engine
 				TopperTiles.Insert(index, tileID);	
 		}
 
-		public void AddSceneryTile(int x, int y, int width, int height)
+		public void AddSceneryTile(int tileID)
 		{
+			foreach(var sceneryTile in SceneryTiles)
+			{
+				if(!(sceneryTile.tileID == tileID))
+					return;
+			}	
+			SceneryTiles.Add(new SceneryTile(tileID, 0.0f, 0.0f));
+		}
 
+		public void AddSceneryTile(int tileID, float x, float y)
+		{
+			foreach (var sceneTile in SceneryTiles)
+			{
+				if ((sceneTile.tileID == tileID) && ( sceneTile.cubePos.X == x) && (sceneTile.cubePos.Y == y))
+					return;
+			}
+			SceneryTiles.Add(new SceneryTile(tileID, x, y));
 		}
 
 		// Helper functions to remove items in the list
@@ -202,13 +239,10 @@ namespace Tile_Engine
 
 		public void RemoveSceneryTile()
 		{
-
+			if (SceneryTiles.Count > 0)
+				SceneryTiles.RemoveAt(SceneryTiles.Count - 1);
 		}
 
-		public void RemoveSceneryTile(int tileID)
-		{
-
-		}
 
 		// Reset the cell
 		public void clearTile()

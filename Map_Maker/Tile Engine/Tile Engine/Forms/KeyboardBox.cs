@@ -33,11 +33,12 @@ namespace Tile_Engine
 			public string charKey;
 			public string playKey;
 			public string walkKey;
+			public string cubeSpaceKey;
 
 			public KeyBoardShortcuts(string tk, string mk, string sk, string lk, string stk, string ak, 
 										string fk, string selk, string coordk, string eventk, string hidk,
 										string uk, string dk, string leftk, string rightk, string ck, string pk,
-										string wk)
+										string wk, string csk)
 			{
 				this.trashKey = tk;
 				this.magnifyKey = mk;
@@ -51,6 +52,7 @@ namespace Tile_Engine
 				this.eventsKey = eventk;
 				this.hiddenKey = hidk;
 				this.walkKey = wk;
+				this.cubeSpaceKey = csk;
 				
 				this.upKey = uk;
 				this.downKey = dk;
@@ -66,9 +68,9 @@ namespace Tile_Engine
 		public KeyboardBox(string tk, string mk, string sk, string lk, string stk, string ak, string fk,
 							string selk, string coordk, string eventk, string hidk,
 							string uk, string dk, string leftk, string rightk, string ck, string pk,
-							string wk)
+							string wk, string csk)
 		{
-			Shortcuts = new KeyBoardShortcuts(tk, mk, sk, lk, stk, ak, fk, selk, coordk, eventk, hidk, uk, dk, leftk, rightk, ck, pk, wk);
+			Shortcuts = new KeyBoardShortcuts(tk, mk, sk, lk, stk, ak, fk, selk, coordk, eventk, hidk, uk, dk, leftk, rightk, ck, pk, wk, csk);
 			InitializeComponent();
 		}
 		void KeyboardBox_Load(object sender, System.EventArgs e)
@@ -88,6 +90,8 @@ namespace Tile_Engine
 			Label UCtrl = new Label() { Text = "Ctrl +", Top = 113, Left = 150, Height = 15, Width = 40 };						
 			Label LeftLabel = new Label() { Text = "Increment Tileset View", Top = 133, Left = 30, Height = 15, Width = 120 };
 			Label LeCtrl = new Label() { Text = "Ctrl +", Top = 133, Left = 150, Height = 15, Width = 40 };
+			Label CubeLabel = new Label() { Text = "Toggle Cubespace", Top = 153, Left = 30, Height = 15, Width = 120 };
+			Label CubeCtrl = new Label() { Text = "Ctrl +", Top = 153, Left = 150, Height = 15, Width = 40 };
 			
 			TextBox TrashText = new TextBox() { Name = "Trash", Text = Shortcuts.trashKey, Top = 30, Left = 190, Height = 15, Width = 40 };
 			TextBox SaveText = new TextBox() { Name = "Save Level", Text = Shortcuts.saveKey, Top = 50, Left = 190, Height = 15, Width = 40 };
@@ -95,6 +99,7 @@ namespace Tile_Engine
 			TextBox FunctionsText = new TextBox() { Name = "Functions", Text = Shortcuts.functionKey, Top = 90, Left = 190, Height = 15, Width = 40 };
 			TextBox UpText = new TextBox() { Name = "Increment Current Tile", Text = Shortcuts.upKey, Top = 110, Left = 190, Height = 15, Width = 40 };
 			TextBox LeftText = new TextBox() { Name = "Decrement Tileset View", Text = Shortcuts.leftKey, Top = 130, Left = 190, Height = 15, Width = 40 };
+			TextBox CubeText = new TextBox() { Name = "Toggle Cubespace", Text = Shortcuts.cubeSpaceKey, Top = 150, Left = 190, Height = 15, Width = 40 };
 			
 			// Col 2
 			Label MagLabel = new Label() { Text = "Magnify", Top = 33, Left = 230, Height = 15 };						
@@ -131,10 +136,10 @@ namespace Tile_Engine
 			TextBox PlayText = new TextBox() { Name = "Play Mode", Top = 113, Text = Shortcuts.playKey, Left = 590, Height = 15, Width = 40 };
 			TextBox WalkText = new TextBox() { Name = "Toggle Walkable", Top = 133, Text = Shortcuts.walkKey, Left =  590, Height = 15, Width = 40 };
 
-			Button okButton = new Button(){ Text = "Ok", Top = 155, Left = 30};
+			Button okButton = new Button(){ Text = "Ok", Top = 175, Left = 30};
 			okButton.Click += new EventHandler(okButton_Click);
 
-			Button cancelButton = new Button(){ Text = "Cancel", Top = 155, Left = 105 };
+			Button cancelButton = new Button(){ Text = "Cancel", Top = 175, Left = 105 };
 			cancelButton.Click += new EventHandler(cancelButton_Click);
 
 			ShortcutPanel.Controls.Add(ShortcutLabel);
@@ -164,6 +169,8 @@ namespace Tile_Engine
 			ShortcutPanel.Controls.Add(PlayCtrl);
 			ShortcutPanel.Controls.Add(WalkLabel);
 			ShortcutPanel.Controls.Add(WalkCtrl);
+			ShortcutPanel.Controls.Add(CubeLabel);
+			ShortcutPanel.Controls.Add(CubeCtrl);
 
 			ShortcutPanel.Controls.Add(TrashText);
 			ShortcutPanel.Controls.Add(MagText);
@@ -183,6 +190,7 @@ namespace Tile_Engine
 			ShortcutPanel.Controls.Add(RightText);
 			ShortcutPanel.Controls.Add(PlayText);
 			ShortcutPanel.Controls.Add(WalkText);
+			ShortcutPanel.Controls.Add(CubeText);
 
 			ShortcutPanel.Controls.Add(okButton);
 			ShortcutPanel.Controls.Add(cancelButton);
@@ -365,8 +373,9 @@ namespace Tile_Engine
 			else
 				checkKey += this.Shortcuts.playKey;
 
-			this.Shortcuts.walkKey = ((TextBox)this.Controls.Find("Toggle Walkable", true).ElementAt(0)).Text.ToUpper();
 
+			this.Shortcuts.walkKey = ((TextBox)this.Controls.Find("Toggle Walkable", true).ElementAt(0)).Text.ToUpper();
+			this.Shortcuts.cubeSpaceKey = ((TextBox)this.Controls.Find("Toggle Cubespace", true).ElementAt(0)).Text.ToUpper();
 
 			if(success)
 			{

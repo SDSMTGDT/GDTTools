@@ -16,6 +16,9 @@ namespace Tile_Engine
 
     class TileMap
     {
+
+		public bool debcheck = false;
+
         public List<MapRow> Rows = new List<MapRow>(); // 2 Dimensional list of map cells
 		public List<int> Layers = new List<int>(); // List of chunked out map layers
         public int mapWidth { get; set; } // Allowed map width
@@ -26,7 +29,7 @@ namespace Tile_Engine
 		public int rotation
 		{
 			get{ return Rotation; }
-			set { Rotation = value % 4; }
+			set { Rotation = (value + 4) % 4; }
 		}
 		
 		// Exchange level data sets
@@ -145,8 +148,11 @@ namespace Tile_Engine
 
 			mapCell.X += dx;
 			mapCell.Y += dy - 2;
-
+			
+			
 			localPoint = new Point((int)(localPointX), (int)(localPointY));
+
+
 
 			return mapCell;
 
@@ -213,12 +219,13 @@ namespace Tile_Engine
 		{
 			Point mapCellPoint = WorldToMapCell(worldPoint);
 			int height;
+			
 			if(Rows[mapCellPoint.Y].Columns[mapCellPoint.X].HeightTiles.Count >= 1 && Rows[mapCellPoint.Y].Columns[mapCellPoint.X].SlopeMap != -1)
 				height = (Rows[mapCellPoint.Y].Columns[mapCellPoint.X].HeightTiles.Count - 1) * Tile.HeightTileOffset;
 			else
 				height = Rows[mapCellPoint.Y].Columns[mapCellPoint.X].HeightTiles.Count * Tile.HeightTileOffset;
 
-			height += GetSlopeHeightAtWorldPoint(worldPoint);
+			height += (int)(GetSlopeHeightAtWorldPoint(worldPoint) * (Rows[mapCellPoint.Y].Columns[mapCellPoint.X].SlopeDivision/ 8.0f));
 
 			return height;
 		}
@@ -323,7 +330,6 @@ namespace Tile_Engine
 					}
 			Rows.Clear();
 			Rows.AddRange(newRow);
-			Console.WriteLine(" Rotation: " + this.rotation);
 		}			
     }
 }

@@ -36,8 +36,8 @@ namespace Tile_Engine
 		KeyboardState current; // Current state of the Keyboard
 		KeyboardState previous; // Last state of the keyboard
 
-		TileMap myMap; // Create a new map variable
-		GUIElements gui; // Create a new gui variable
+		TileMap myMap; // Create a new map class
+		GUIElements gui; // Create a new gui control class
 
 		// List of Map events, stored virtually for later encoding
 		List<TileEventObject> Events;
@@ -51,11 +51,11 @@ namespace Tile_Engine
 
 		Point StartingPos; // Character Starting Position, Map Coordinates
 
-		// Camera window size
+		// Camera window size, in Tiles
         float squaresAcross = 24;
         float squaresDown = 54;
 
-		// Camera offsets
+		// Camera offsets, in Pixels
 		int baseOffsetX = -32;
 		int baseOffsetY = -64;
 
@@ -70,7 +70,6 @@ namespace Tile_Engine
 		int ShowEvents = 0;
 		int view = 0;
 		int preview;
-		bool walkable = true;
 		int slopeMap = -1;
 		int tileType = 0;
 
@@ -80,6 +79,7 @@ namespace Tile_Engine
 		float waitTime = 1.4f;
 		float CurrentWait = 0;
 		float ShiftWait = 0;
+		bool walkable = true;
 
 		// Texture storage variables
 		Texture2D hilight;
@@ -93,8 +93,9 @@ namespace Tile_Engine
 		Texture2D charStart;
 		Texture2D WireframeView;
 		Texture2D NoWalk;
+		Texture2D CubeText;
 
-		// Magnifiying glass image offset
+		// Magnifiying glass image offset, in Pixels
 		int MagOffset = 25;
 
 		// IO/Editor State variables
@@ -109,22 +110,34 @@ namespace Tile_Engine
 		bool go = true;
 		bool tileIterate = false;
 		bool layTrash = false;
-
+		bool cubeSpace = false;
+							
 		// Filepath strings
 		string tilesetfile;
 		string slopemapfile;
 		string tilesetdatafile;
- 
-		// Sprite 
+
+		// Demo Sprite Class Variable and Name
 		SpriteAnimation vlad;
 		string SpriteName;
 
+		// Lists of indicies for expanding tile placement/removal selection area
 		List<Point> selectionEvenList = new List<Point>();
 		List<Point> selectionOddList = new List<Point>();
 		List<Point> selectionList;
+
+		Vector2[,] cubeMapping;
+		int cubeSpaceDivisions = 8;
+ 
+		// Debuggin stop variable
 		bool debcheck = false;
 
 		// Constructor
+		/// <summary>
+		/// Initializes game control devices
+		/// I.E. graphics manager, content directory,
+		/// back buffer height/width
+		/// </summary>
         public Game1()
         {
 			// Set reference to Device Manager, Content Directory, and Window Dimensions
@@ -137,9 +150,8 @@ namespace Tile_Engine
 
         /// <summary>
         /// Allows the game to perform any initialization it needs to before starting to run.
-        /// This is where it can query for any required services and load any non-graphic
-        /// related content.  Calling base.Initialize will enumerate through any components
-        /// and initialize them as well.
+        /// Initializes the names of default files and sets up events relating to the 
+		/// main window.
         /// </summary>
         protected override void Initialize()
         {
@@ -151,16 +163,19 @@ namespace Tile_Engine
 			tilesetdatafile = @"default_tileset.meta";
 			slopemapfile = @"Textures\Tilesets\default_slopemaps";
 
+			// Gain a handle on the main application window and subscribe to some events
 			System.Windows.Forms.Form gameWindow = System.Windows.Forms.Form.FromHandle(this.Window.Handle) as System.Windows.Forms.Form;
 			if(gameWindow != null)
+			{
+				// Subscribe to window closing event
 				gameWindow.FormClosing += new System.Windows.Forms.FormClosingEventHandler(CheckSave);
-				
+			}	
             base.Initialize();
         }
 
         /// <summary>
-        /// LoadContent will be called once per game and is the place to load
-        /// all of your content.
+        /// LoadContent sets up/loads in all of the initial media 
+		/// and application level data and settings
         /// </summary>
         protected override void LoadContent()
         {
@@ -201,16 +216,20 @@ namespace Tile_Engine
 			// Initialize Event list
 			Events = new List<TileEventObject>(ReadLevel.Events);
 			
-
+			// Set initial starting position
 			StartingPos = myMap.WorldToMapCell(new Vector2(100, 100));
+
+			// Set up sprites, forms, and selection sizing
 			SetUpSprites();
-
 			SetUpForms();
-
 			SetUpSelection(gui.selectionSize);
+			float xShift = 0.0f, yShift = 0.0f;
+			SetUpCubeMapping(cubeSpaceDivisions, xShift, yShift);
         }
 
-
+		/// <summary>
+		/// Sets the initial keyboard shortcut keys
+		/// </summary>
 		private void KeyboardShortcuts()
 		{
 			// Inital Keyboard mapping
@@ -238,16 +257,21 @@ namespace Tile_Engine
 			KeyBoardController.ChangeModes = Keys.M;
 			KeyBoardController.ViewKey = Keys.V;
 			KeyBoardController.walkableKey = Keys.W;
+			KeyBoardController.cubeSpaceKey = Keys.C;
 
 		}
 
+		/// <summary>
+		/// Load in current application media
+		/// from the content pipeline
+		/// </summary>
 		private void LoadContentPipeline()
 		{
 			// Gui object textures
 			trash = Content.Load<Texture2D>(@"Textures\GUIElements\trash");
 			MagGlass = Content.Load<Texture2D>(@"Textures\GUIElements\MagGlass");
 			NoWalk = Content.Load<Texture2D>(@"Textures\GUIElements\donotwalk");
-
+			CubeText = Content.Load<Texture2D>(@"Textures\GUIElements\CubeSpace");
 			// Generate a new map
 			myMap = new TileMap(
 				Content.Load<Texture2D>(@"Textures\Tilesets\mousemap"),
@@ -258,7 +282,8 @@ namespace Tile_Engine
 
 			// Load in the tile image
             Tile.TileSetTexture = Content.Load<Texture2D>(tilesetfile);
-			Tile.MaxTileNum = (Tile.TileSetTexture.Height / Tile.tileHeight) * (Tile.TileSetTexture.Width / Tile.tileWidth) - 1;
+			if(Tile.MaxTileNum == 0)
+				Tile.MaxTileNum = (Tile.TileSetTexture.Height / Tile.tileHeight) * (Tile.TileSetTexture.Width / Tile.tileWidth) - 1;
 			
 			Wireframe = Content.Load<Texture2D>(@"Textures\Tilesets\Wireframe");
 			WireframeView = Content.Load<Texture2D>(@"Textures\Tilesets\WireframeLG");
@@ -276,6 +301,11 @@ namespace Tile_Engine
 			pericles6 = Content.Load<SpriteFont>(@"Fonts\Pericles6");
 		}
 
+		#region Initial Setups
+		/// <summary>
+		/// Initialize Application camera position, 
+		/// orientation and aspect ratio
+		/// </summary>
 		private void SetUpCamera()
 		{
 			// Camera view is equal to the screen buffer size
@@ -286,13 +316,20 @@ namespace Tile_Engine
 			camera.worldWidth = ((myMap.mapWidth - 2) * Tile.TileStepX);
 			camera.worldHeight = ((myMap.mapHeight - 2) * Tile.TileStepY);
 
+			// Set up the aspect ratio, w / h
+			camera.AspectRatio = (float)(camera.worldWidth - camera.ViewWidth) / (float)(camera.worldHeight - camera.ViewHeight);
+
 			// Inital camera position, so that we never see the half rendered 'edge' of the screen
 			camera.displayOffset = new Vector2(baseOffsetX, baseOffsetY);
 			camera.Zoom = 1.0f;
 			camera.ZoomStep = 2.0f;
 			camera.Rotation = 0.0f;
+
 		}
 
+		/// <summary>
+		/// Initilize sprites used in the system
+		/// </summary>
 		private void SetUpSprites()
 		{
 			// Sprite Name
@@ -328,6 +365,9 @@ namespace Tile_Engine
 
 		}
 
+		/// <summary>
+		/// Set up window's forms for system control
+		/// </summary>
 		private void SetUpForms()
 		{
 		
@@ -344,7 +384,8 @@ namespace Tile_Engine
 									 KeyBoardController.upKey.ToString(), KeyBoardController.downKey.ToString(),
 									 KeyBoardController.leftKey.ToString(), KeyBoardController.rightKey.ToString(),
 									 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString(),
-									 KeyBoardController.walkableKey.ToString());
+									 KeyBoardController.walkableKey.ToString(),
+									 KeyBoardController.cubeSpaceKey.ToString());
 
 			charbox = new CharacterBox(vlad.spName, KeyBoardController.CharacterUp.ToString(), KeyBoardController.CharacterDown.ToString(),
 										KeyBoardController.CharacterLeft.ToString(), KeyBoardController.CharacterRight.ToString(),
@@ -352,6 +393,11 @@ namespace Tile_Engine
 
 		}
 
+		/// <summary>
+		/// Set up the selection expansion lists based upon the
+		/// maximum side length provided
+		/// </summary>
+		/// <param name="selSize">Specifies the maximum length of the selection box</param>
 		private void SetUpSelection(int selSize)
 		{
 			selectionEvenList.Clear();
@@ -435,6 +481,29 @@ namespace Tile_Engine
 
 		}
 
+		/// <summary>
+		/// Set up the list for cubespace mapping based on the number
+		/// of divisions per cube side, and x/y shifting offsets
+		/// </summary>
+		/// <param name="divisions">Number of divisions per cube side</param>
+		/// <param name="xShift">x placement shifted offset</param>
+		/// <param name="yShift">y placement shifted offset</param>
+		private void SetUpCubeMapping(int divisions, float xShift, float yShift)
+		{
+			cubeMapping = new Vector2[divisions, divisions];
+			float xMult = Tile.tileWidth / (2 * divisions);
+			float yMult = Tile.tileHeight / (4 * divisions);
+
+
+			// Generate the mappings from CubeSpace to pixel offsets
+			for(int x = 0; x < divisions; x++)
+				for(int y = 0; y < divisions; y++)
+				{
+					cubeMapping[x, y] = new Vector2((y + x) * xMult - 32, (x - y) * yMult); 
+				}
+		}
+		#endregion
+
         /// <summary>
         /// UnloadContent will be called once per game and is the place to unload
         /// all content.
@@ -445,8 +514,10 @@ namespace Tile_Engine
         }
 
         /// <summary>
-        /// Allows the game to run logic such as updating the world,
-        /// checking for collisions, gathering input, and playing audio.
+        /// Allows the game to run logic such as updates character positions
+		/// camera movement, world position, and tile locations.
+		/// Handles keyboard and mouse inputs. Including object movements
+		/// setting changes, map changes, form activation and gui events.
         /// </summary>
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
@@ -485,8 +556,10 @@ namespace Tile_Engine
 			if (current != previous || fastIterate)
 			{
 				if(ks.IsKeyDown(Keys.D))
+				{
 					debcheck = !debcheck;
-
+					myMap.debcheck = !debcheck;
+				}
 				if(ks.IsKeyDown(Keys.LeftControl) || ks.IsKeyDown(Keys.RightControl) || fastIterate)
 				{
 					#region CtrlKeys
@@ -498,10 +571,6 @@ namespace Tile_Engine
 					else if (ks.IsKeyDown(KeyBoardController.loadKey))
 					{
 						this.gui.load = true;
-					}
-					else if (ks.IsKeyDown(Keys.R))
-					{
-						myMap.RotateMapClockwise(true);
 					}
 					else if (ks.IsKeyDown(KeyBoardController.ChangeModes))
 					{
@@ -524,6 +593,18 @@ namespace Tile_Engine
 					{
 						preview = view;
 						view = 0;
+					}
+					else if(ks.IsKeyDown(KeyBoardController.cubeSpaceKey))
+					{
+						if(!(gui.selectionSize > 1))
+							cubeSpace = !cubeSpace;
+					}
+					else if(ks.IsKeyDown(Keys.R))
+					{
+						myMap.RotateMapClockwise(true);
+						float cwidth = camera.worldWidth - camera.ViewWidth;
+						camera.Location = new Vector2(cwidth - (camera.Location.Y * camera.AspectRatio), camera.Location.X / camera.AspectRatio);	
+						Console.WriteLine("Location: " + camera.Location.ToString());
 					}
 
 					else if(fastIterate || ks.IsKeyDown(KeyBoardController.upKey) || ks.IsKeyDown(KeyBoardController.downKey) )
@@ -580,11 +661,10 @@ namespace Tile_Engine
 						gui.IncreaseSelectionSize(false);
 						SetUpSelection(gui.selectionSize);
 					}
+					if(gui.selectionSize > 1)
+						cubeSpace = false;
+
 					#endregion					
-				}
-				else if (ks.IsKeyDown(Keys.R))
-				{
-					myMap.RotateMapClockwise(false);
 				}
 				else if (ks.IsKeyDown(KeyBoardController.coordsKey))
 				{
@@ -653,8 +733,19 @@ namespace Tile_Engine
 				{
 					this.gui.characters = true;
 				}
-	
+				else if (ks.IsKeyDown(Keys.R))
+				{
+					myMap.RotateMapClockwise(false);
+					float cheight = camera.worldHeight - camera.ViewHeight;
+					camera.Location = new Vector2((camera.Location.Y * camera.AspectRatio), cheight - camera.Location.X / camera.AspectRatio);
+				}
+
+				if(Tile.tilesetMap[gui.currentTile].type != 3)
+					cubeSpace = false;
+
 				#endregion
+
+
 
 				if (ks.IsKeyDown(Keys.Escape))
 				{
@@ -901,7 +992,8 @@ namespace Tile_Engine
 			// Determine relative mouse location
 			int heightrowOffset = 0;
 			Vector2 MouseLoc = camera.ScreentoWorld(new Vector2(Mouse.GetState().X, Mouse.GetState().Y));
-			Point MousePoint = myMap.WorldToMapCell(new Point((int)MouseLoc.X, (int)MouseLoc.Y));
+			Point CubeSpacePoint;
+			Point MousePoint = myMap.WorldToMapCell(new Point((int)MouseLoc.X, (int)MouseLoc.Y), out CubeSpacePoint);
 			MousePoint.Y += (2 *myMap.Layers.Count);
 			Point MouseLocPoint = new Point((int)((MouseLoc.X  - camera.Location.X + baseOffsetX) * camera.Zoom), (int)((MouseLoc.Y - camera.Location.Y + baseOffsetY) * camera.Zoom));
 		
@@ -912,8 +1004,8 @@ namespace Tile_Engine
 			}
 
 			// Left button press contols
-			#region LeftButton		
-
+			#region LeftButton
+			
 			// Debounce the button
 			if(mouseStateCurrent.LeftButton == ButtonState.Pressed)
 			{
@@ -929,7 +1021,7 @@ namespace Tile_Engine
 				{
 					SaveLevel.saved = false;
 
-					#region Gui Change
+					#region Gui Changes
 					// Increase or decrease the camera zoom
 					if(gui.magnify)
 					{
@@ -954,7 +1046,7 @@ namespace Tile_Engine
 					}
 					#endregion
 
-					#region Map Change
+					#region Map Changes
 					else
 					{
 						int mouseX, mouseY, selMax = 0;
@@ -984,7 +1076,10 @@ namespace Tile_Engine
 							{
 								int trashPoint = (layTrash ? selMax - 1 : 0);
 
-								if (myMap.Rows[mouseY].Columns[mouseX].TopperTiles.Count > trashPoint)
+								if (myMap.Rows[mouseY].Columns[mouseX].SceneryTiles.Count > trashPoint)
+									myMap.Rows[mouseY].Columns[mouseX].RemoveSceneryTile();
+
+								else if (myMap.Rows[mouseY].Columns[mouseX].TopperTiles.Count > trashPoint)
 									myMap.Rows[mouseY].Columns[mouseX].RemoveTopperTile();
 
 								else if (myMap.Rows[mouseY].Columns[mouseX].HeightTiles.Count > trashPoint)
@@ -992,6 +1087,8 @@ namespace Tile_Engine
 
 								else if (myMap.Rows[mouseY].Columns[mouseX].BaseTiles.Count > trashPoint)
 									myMap.Rows[mouseY].Columns[mouseX].RemoveBaseTile();
+								
+									
 							}
 							else if(!gui.GetState())// Add tiles
 							{
@@ -1010,7 +1107,9 @@ namespace Tile_Engine
 										myMap.Rows[mouseY].Columns[mouseX].AddTopperTile(gui.currentTile);
 									}
 									else if(tileType == 4)
-									{}
+									{
+										myMap.Rows[mouseY].Columns[mouseX].AddSceneryTile(gui.currentTile);
+									}
 									
 									else if(Tile.hashGenerated)
 									{
@@ -1026,6 +1125,21 @@ namespace Tile_Engine
 
 											case 2:
 												myMap.Rows[mouseY].Columns[mouseX].AddTopperTile(gui.currentTile);
+												break;
+
+											case 3:
+												if(cubeSpace)
+												{
+													CubeSpacePoint.Y = CubeSpacePoint.Y - 16;
+
+													CubeSpacePoint.X = (CubeSpacePoint.X / 4) * 4 - 32;
+													CubeSpacePoint.Y = (CubeSpacePoint.Y / 2) * 2;
+													myMap.Rows[mouseY].Columns[mouseX].AddSceneryTile(gui.currentTile, CubeSpacePoint.X, CubeSpacePoint.Y);
+												
+												}
+												else
+													myMap.Rows[mouseY].Columns[mouseX].AddSceneryTile(gui.currentTile, 0.0f, 0.0f);
+												
 												break;
 
 											default:
@@ -1102,8 +1216,7 @@ namespace Tile_Engine
 				rpressed = false;
 			}
 			#endregion
-
-			
+		
 			#endregion
 
 			// Windows Forms events
@@ -1144,7 +1257,8 @@ namespace Tile_Engine
 										 KeyBoardController.upKey.ToString(), KeyBoardController.downKey.ToString(),
 										 KeyBoardController.leftKey.ToString(), KeyBoardController.rightKey.ToString(),
 										 KeyBoardController.characterKey.ToString(), KeyBoardController.ChangeModes.ToString(),
-										 KeyBoardController.walkableKey.ToString());
+										 KeyBoardController.walkableKey.ToString(),
+										 KeyBoardController.cubeSpaceKey.ToString());
 				keybox.Show();
 				keybox.FormClosed += new System.Windows.Forms.FormClosedEventHandler(keybox_FormClosed);
 			}
@@ -1166,7 +1280,14 @@ namespace Tile_Engine
 			base.Update(gameTime);
         }
 		
+		// Handle clean up and use of data after close of a settings form
 		#region Form Control Methods
+
+		/// <summary>
+		/// Handles data control after setbox had been closed
+		/// </summary>
+		/// <param name="sender">Form control handle</param>
+		/// <param name="e">Event argument list</param>
 		private void setbox_FormClosed(object sender, EventArgs e)
 		{
 			if(setbox.ok)
@@ -1176,17 +1297,18 @@ namespace Tile_Engine
 				setbox.layers.Clear();
 
 				if (setbox.tilefile.IndexOf("default_tileset", 0) != -1 || setbox.tilefile == "")
+				{
 					Tile.TileSetTexture = Content.Load<Texture2D>(@"Textures\Tilesets\default_tileset");
+				}
 				else
 				{
 					FileStream textureread = File.Open(setbox.tilefile, FileMode.Open, FileAccess.Read, FileShare.Read);
 					Tile.TileSetTexture = Texture2D.FromStream(GraphicsDevice, textureread);
 					tilesetfile = setbox.tilefile;
+					tilesetdatafile = tilesetfile.Substring(0, tilesetfile.LastIndexOf('.')) + ".meta";
 				}
 
-				tilesetdatafile = tilesetfile.Substring(0, tilesetfile.LastIndexOf('.')) + ".meta";
-
-
+				
 				Tile.tileWidth = setbox.tileWid;
 				Tile.tileHeight = setbox.tileHei;
 				Tile.genTileHash(tilesetdatafile);
@@ -1204,6 +1326,11 @@ namespace Tile_Engine
 				formwaiting = true;
 		}
 
+		/// <summary>
+		/// Handles data control after autbox had been closed
+		/// </summary>
+		/// <param name="sender">Form control handle</param>
+		/// <param name="e">Event argument list</param>
 		private void autbox_FormClosed(object sender, EventArgs e)
 		{
 			if(autbox.ok)
@@ -1211,6 +1338,12 @@ namespace Tile_Engine
 			else	
 				formwaiting = true;
 		}
+
+		/// <summary>
+		/// Handles data control after funcbox had been closed
+		/// </summary>
+		/// <param name="sender">Form control handle</param>
+		/// <param name="e">Event argument list</param>
 		private void funcbox_FormClosed(object sender, EventArgs e)
 		{
 			if(funcbox.ok)
@@ -1219,6 +1352,7 @@ namespace Tile_Engine
 				SaveLevel.saved = false;
 				Events.Clear();
 
+				// Sets up swap cell events that the user specified inside the funcbox form
 				#region Swap Events
 				// Swap Events
 				foreach (var Swap in funcbox.swaps)
@@ -1258,6 +1392,7 @@ namespace Tile_Engine
 				}
 				#endregion
 
+				// Sets up Tileset change events that the user specified inside the funcbox form
 				#region Tileset Events
 				foreach(var tile in funcbox.tilesets)
 				{
@@ -1272,6 +1407,7 @@ namespace Tile_Engine
 				}
 				#endregion
 
+				// Sets up SpriteSheet change events that the user specified inside the funcbox form
 				#region SpriteSheet Events
 				foreach(var sprite in funcbox.spritesheets)
 				{
@@ -1296,9 +1432,15 @@ namespace Tile_Engine
 			else 
 				formwaiting = true;
 		}
-		
+
+		/// <summary>
+		/// Handles data control after keybox had been closed
+		/// </summary>
+		/// <param name="sender">Form control handle</param>
+		/// <param name="e">Event argument list</param>
 		private void keybox_FormClosed(object sender, EventArgs e)
 		{
+			// Tries to parse out the keys specified by the user into valid keyboard characters
 			#region Set Keys
 			if(keybox.ok)
 			{
@@ -1339,6 +1481,8 @@ namespace Tile_Engine
 				catch { };
 				try { KeyBoardController.walkableKey = (Keys)Enum.Parse(typeof(Keys), keybox.Shortcuts.walkKey); }
 				catch { };
+				try { KeyBoardController.cubeSpaceKey = (Keys)Enum.Parse(typeof(Keys), keybox.Shortcuts.cubeSpaceKey); }
+				catch { };
 			}
 			else
 			{
@@ -1347,8 +1491,13 @@ namespace Tile_Engine
 
 			#endregion
 		}
-
-		void charbox_FormClosed(object sender, System.Windows.Forms.FormClosedEventArgs e)
+		
+		/// <summary>
+		/// Handles data control after charbox had been closed
+		/// </summary>
+		/// <param name="sender">Form control handle</param>
+		/// <param name="e">Event argument list</param>
+		private void charbox_FormClosed(object sender, System.Windows.Forms.FormClosedEventArgs e)
 		{
 			if(charbox.ok)
 			{
@@ -1371,7 +1520,7 @@ namespace Tile_Engine
 		#endregion
 
         /// <summary>
-        /// This is called when the game should draw itself.
+        /// Called to redraw all current items within the application
         /// </summary>
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
@@ -1742,6 +1891,97 @@ namespace Tile_Engine
 					}
 					#endregion 
 
+					// Draw all Scenery tiles in viewport
+					#region SceneryTiles
+
+					foreach (var sceneTile in myMap.Rows[y + firstY].Columns[x + firstX].SceneryTiles)
+					{
+						#region Hidden Mode
+						if (view == 1)
+						{
+							spriteBatch.Draw(
+
+							// Texture to be drawn
+							activeArea,
+
+							// Where on the 'screen' to draw a tile, use a row offset for odd row hexes
+							camera.WorldtoScreen(
+									new Vector2(
+										(mapx * Tile.TileStepX) + rowOffset,
+										(mapy * Tile.TileStepY) - (heightRow * Tile.HeightTileOffset) + Tile.HeightTileOffset)),
+
+							// Determine what type of tile to draw
+							null,
+
+							Color.DarkSlateBlue, // Draw in original colors
+							0.0f, // No rotation
+							Vector2.Zero, // Origin is not moved
+							1.0f,
+							SpriteEffects.None, // No flips
+
+							// Increase the depthoffset by 0.0000001f every height we add
+								// this will allow it to move above existing items without
+								// interfering with the surrounding depth values
+							depthOffset - ((float)heightRow * heightRowDepthMod) - toppercount);
+							toppercount += 0.0000001f;
+						}
+						#endregion
+
+						#region Movement Mode
+						else if (view == 2)
+						{
+							spriteBatch.Draw(
+								// Texture to be drawn
+								activeArea,//text,
+								// Where on the 'screen' to draw a tile, use a row offset for odd row hexes
+								camera.WorldtoScreen(
+										new Vector2((mapx * Tile.TileStepX) + rowOffset,
+														mapy * Tile.TileStepY + 32)),
+
+								// Determine what type of tile to draw
+								null,//Tile.GetSourceRectangle(tileID),
+
+								(myMap.Rows[mapy].Columns[mapx].walkable) ? Color.White * 1.5f : Color.DarkGray, // Draw in original colors
+								0.0f, // No Rotation 
+								Vector2.Zero, // 0, 0 origin
+								1.0f,// No scaling
+								SpriteEffects.None, // No flips
+								1.0f - basecount); // Starting layer
+
+							// Increment depth offset to stack tiles
+							
+						}
+
+						#endregion
+
+						#region Normal Mode
+						else
+						{
+							Tile.tileValues curTile = Tile.tilesetMap[sceneTile.tileID];
+							Vector2 sceneryOffset = new Vector2(-(curTile.imageDim.X - 1) / 2, curTile.imageDim.Y + (int)((curTile.imageDim.Y + 1) / 2));
+							// Draw the selected tile at the max height of the current tile
+							spriteBatch.Draw(Tile.TileSetTexture,
+								camera.WorldtoScreen(
+									new Vector2(
+										((mapx + (int)sceneryOffset.X) * Tile.TileStepX) + rowOffset
+										+ sceneTile.cubePos.X, // X placement
+										((mapy + 2) * Tile.TileStepY) -
+										(int)sceneryOffset.Y * Tile.HeightTileOffset -
+										heightRow * Tile.HeightTileOffset + sceneTile.cubePos.Y)), // Y placement
+
+									Tile.GetSourceRectangle(Tile.GetTileIndex(sceneTile.tileID, curRotation)),
+									Color.White,
+									0.0f,
+									Vector2.Zero,
+									drawratio,
+									SpriteEffects.None,
+									depthOffset - ((float)heightRow * heightRowDepthMod) - basecount);
+							basecount += 0.0000001f;
+						}
+						#endregion
+					}
+					#endregion
+
 					///////////////////////////////////HIDING THE SPRITE/////////////////////////////
 					// Modify the depth of the sprite when it is behind a heightened tile
 					if ((mapx == vladMapPoint.X) && (mapy == vladMapPoint.Y))
@@ -1754,10 +1994,8 @@ namespace Tile_Engine
                 	{
 					
 					spriteBatch.DrawString(pericles6, (x + firstX).ToString() + ", " + (y + firstY).ToString(),
-											// REMOVE + 0.5f
 											new Vector2((x * Tile.TileStepX) - offsetX + rowOffset + baseOffsetX + 24,
-											// REMOVE + 4f
-											(y* Tile.TileStepY) - offsetY + baseOffsetY + 48), Color.White, 0f, Vector2.Zero,
+											(y * Tile.TileStepY) - offsetY + baseOffsetY + 48), Color.White, 0f, Vector2.Zero,
 											1.0f, SpriteEffects.None, 0.01f);  
 					}
 				}
@@ -1771,6 +2009,7 @@ namespace Tile_Engine
 			Point hilightPoint = myMap.WorldToMapCell(new Point((int) hilightLoc.X, (int) hilightLoc.Y));
 
 			// Use an offset on odd rows
+			#region Set SelectionList
 			int hilightrowOffset = 0;
 			int selectionOffset = 0;
 			int negate = 1;
@@ -1783,9 +2022,11 @@ namespace Tile_Engine
 			}
 			else
 				selectionList = selectionEvenList;
+			#endregion
 
 			// Draw the hilight of the selection size the the current mapcell 
-			for(int sel = 0; sel < gui.selectionSize*gui.selectionSize; sel++)
+			#region Draw Highlight
+			for (int sel = 0; sel < gui.selectionSize*gui.selectionSize; sel++)
 			{
 				if(sel % 2 == 1)
 					selectionOffset = negate * (int)Tile.OddRowXOffset;
@@ -1807,13 +2048,15 @@ namespace Tile_Engine
 						SpriteEffects.None, // no effects
 						0.011f); // Draw above other tiles
 			}
+			#endregion
 
 			// Determine current map cell location 
 			int mouseMapx = (firstX + hilightPoint.X);
 			int mouseMapy = (firstY + hilightPoint.Y + (2 * myMap.Layers.Count));
 
 			Vector2 MouseLoc = camera.ScreentoWorld(new Vector2(Mouse.GetState().X, Mouse.GetState().Y));
-			Point MousePoint = myMap.WorldToMapCell(new Point((int)MouseLoc.X, (int)MouseLoc.Y));
+			Point CubeSpacePoint;
+			Point MousePoint = myMap.WorldToMapCell(new Point((int)MouseLoc.X, (int)MouseLoc.Y), out CubeSpacePoint);
 
 			// layer offset
 			hilightPoint.Y += (2 * myMap.Layers.Count);
@@ -1837,6 +2080,7 @@ namespace Tile_Engine
 			// If the magnifying glass tool is selected
 			if(gui.magnify)
 			{
+				#region Draw Magnifiy
 				// Determine with glass to draw depending on state
 				int multiplier = 1;
 				if(ctrlkey)
@@ -1856,12 +2100,14 @@ namespace Tile_Engine
 								1.0f,
 								SpriteEffects.None,
 								mousedepthOffset - (0.0001f * heightCount));
+				#endregion
 			}
 			
 			else
 			{
 
 				int mouseX, mouseY, selMax = 0, prevMax = 0;
+				#region Set Trash Offset
 				float trashdepthOffset = 0;
 				for (int findmax = 0; findmax < gui.selectionSize * gui.selectionSize; findmax++)
 				{
@@ -1877,10 +2123,12 @@ namespace Tile_Engine
 					catch //If selection leaves map
 					{}
 				}
+				#endregion
 
 				// If the trash tool is selected
 				if (gui.trash)
 				{
+					#region Draw Trash
 					// Draw the trash tool icon at the max height of the current tile
 					spriteBatch.Draw(trash,
 							camera.WorldtoScreen(
@@ -1895,6 +2143,7 @@ namespace Tile_Engine
 									1.0f,
 									SpriteEffects.None,
 									(trashdepthOffset == 0.0 ? mousedepthOffset : trashdepthOffset) - (0.001f * selMax));
+					#endregion
 				}
 
 				for(int sel = 0; sel < gui.selectionSize*gui.selectionSize; sel++)
@@ -1912,7 +2161,7 @@ namespace Tile_Engine
 					mouseY = MousePoint.Y + selectionList.ElementAt(sel).Y;
 					mouseX = MousePoint.X + selectionList.ElementAt(sel).X;					
 					
-					mousedepthOffset = 0.7f - ((mouseX + (mouseY * Tile.tileWidth)) / maxdepth);
+					mousedepthOffset = 0.7f - ((mouseX + (mouseY * Tile.tileWidth)) / maxdepth) - 0.0000001f;
 
 					try
 					{
@@ -1928,6 +2177,7 @@ namespace Tile_Engine
 					else
 						selectionOffset = 0;
 					
+					#region Draw Helping Placement Marker
 					if(heightCount != 0 && (layTrash ? heightCount == selMax : true))
 						spriteBatch.Draw(activeArea,
 							camera.WorldtoScreen(
@@ -1942,13 +2192,78 @@ namespace Tile_Engine
 									1.0f,
 									SpriteEffects.None,
 									0.001f);
+					#endregion
 					
 					//Draw current tile
 					if(!gui.trash)
 					{
-						// Draw the selected tile at the max height of the current tile
-						spriteBatch.Draw(Tile.TileSetTexture,
-							camera.WorldtoScreen(
+						if(Tile.tilesetMap[gui.currentTile].type == 3)
+						{					
+							#region Draw Scenery Tiles
+					
+							if(cubeSpace)
+							{
+								CubeSpacePoint.Y = CubeSpacePoint.Y - 16;
+
+								CubeSpacePoint.X = ((CubeSpacePoint.X) / 4) * 4 - 32;
+								CubeSpacePoint.Y = (CubeSpacePoint.Y / 2) * 2;
+		
+								Vector2 CubeSpaceOffset = new Vector2(CubeSpacePoint.X, CubeSpacePoint.Y);//Vector2.Zero;
+							
+								Tile.tileValues curTile = Tile.tilesetMap[gui.currentTile];
+								Vector2 sceneryOffset = new Vector2(-(curTile.imageDim.X - 1) / 2, curTile.imageDim.Y + (int)((curTile.imageDim.Y + 1) / 2));
+								// Draw the selected tile at the max height of the current tile
+								spriteBatch.Draw(Tile.TileSetTexture,
+									camera.WorldtoScreen(
+										new Vector2(
+											((hilightPoint.X + (int)sceneryOffset.X + selectionList.ElementAt(sel).X ) * Tile.TileStepX) + 
+												hilightrowOffset + selectionOffset + CubeSpaceOffset.X, // X placement
+											((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) -
+											(int)sceneryOffset.Y * Tile.HeightTileOffset -
+											heightCount * Tile.HeightTileOffset + 
+											CubeSpaceOffset.Y)),// Y placement
+
+										Tile.GetSourceRectangle(Tile.GetTileIndex(gui.currentTile, curRotation)),
+										Color.White,
+										0.0f,
+										Vector2.Zero,
+										drawratio,
+										SpriteEffects.None,
+										mousedepthOffset - (0.0001f * heightCount));
+	
+							}
+							else 
+							{
+
+								Tile.tileValues curTile = Tile.tilesetMap[gui.currentTile];
+								Vector2 sceneryOffset = new Vector2(-(curTile.imageDim.X - 1) / 2, curTile.imageDim.Y + (int)((curTile.imageDim.Y + 1) / 2) );
+								// Draw the selected tile at the max height of the current tile
+								spriteBatch.Draw(Tile.TileSetTexture,
+									camera.WorldtoScreen(
+										new Vector2(
+											((hilightPoint.X + (int)sceneryOffset.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset, // X placement
+											((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) -  
+											(int)sceneryOffset.Y * Tile.HeightTileOffset -
+											heightCount * Tile.HeightTileOffset)),// Y placement
+												
+										Tile.GetSourceRectangle(Tile.GetTileIndex(gui.currentTile, curRotation)),
+										Color.White,
+										0.0f,
+										Vector2.Zero,
+										drawratio,
+										SpriteEffects.None,
+										mousedepthOffset - (0.0001f * heightCount));
+
+							}
+
+							#endregion
+						}
+						else
+						{
+							#region Draw Non-scenery tiles
+							// Draw the selected tile at the max height of the current tile
+							spriteBatch.Draw(Tile.TileSetTexture,
+								camera.WorldtoScreen(
 									new Vector2(
 										((hilightPoint.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset, // X placement
 										((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) - Tile.HeightTileOffset - // Y placement
@@ -1960,15 +2275,17 @@ namespace Tile_Engine
 									drawratio,
 									SpriteEffects.None,
 									mousedepthOffset - (0.0001f * heightCount));
+							#endregion
 
-
-						if(!walkable)
+						}
+						if(!walkable || cubeSpace)
 						{
+							#region Draw Not-Walkable icon
 							// Draw the selected tile at the max height of the current tile
-							spriteBatch.Draw(NoWalk,
+							spriteBatch.Draw((cubeSpace ? CubeText : NoWalk),
 								camera.WorldtoScreen(
 										new Vector2(
-											((hilightPoint.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset, // X placement
+											((hilightPoint.X + selectionList.ElementAt(sel).X) * Tile.TileStepX) + hilightrowOffset + selectionOffset - 20, // X placement
 											((hilightPoint.Y + 2 + selectionList.ElementAt(sel).Y) * Tile.TileStepY) - Tile.HeightTileOffset - // Y placement
 													Tile.HeightTileOffset * heightCount)),
 										null,
@@ -1978,6 +2295,7 @@ namespace Tile_Engine
 										1.0f,
 										SpriteEffects.None,
 										0.00015f );
+							#endregion
 						}	
 					}
 				}
@@ -2108,6 +2426,12 @@ namespace Tile_Engine
             base.Draw(gameTime);
         }
 
+		/// <summary>
+		/// When invoked, fires all event functions that 
+		/// exist within the current location
+		/// </summary>
+		/// <param name="Location">Location to check for events</param>
+		/// <param name="sprite">current sprite for event to act upon</param>
 		private void UpdateEvents(Point Location, SpriteAnimation sprite)
 		{
 			foreach (TileEventObject events in Events)
@@ -2130,6 +2454,12 @@ namespace Tile_Engine
 			}
 		}
 
+		/// <summary>
+		/// Called when the app window attempts to close
+		/// Prompts to save the map if unsaved changes are detected
+		/// </summary>
+		/// <param name="sender">Window object</param>
+		/// <param name="e">Event argument list</param>
 		private void CheckSave(object sender, System.Windows.Forms.FormClosingEventArgs e)
 		{
 			if(!SaveLevel.saved)

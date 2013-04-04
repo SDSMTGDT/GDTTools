@@ -31,7 +31,7 @@
 			this.components = new System.ComponentModel.Container();
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.Width = 650;
-			this.Height = 225;
+			this.Height = 260;
 			this.Text = "Keyboard Shortcuts";
 			this.Load += new System.EventHandler(KeyboardBox_Load);
 		}

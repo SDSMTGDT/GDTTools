@@ -22,6 +22,7 @@ namespace Tile_Engine
 		public static int ViewHeight{ get; set;} // viewport height
 		public static int worldWidth{ get; set;} // world width
 		public static int worldHeight{ get; set;} // world height
+		public static float AspectRatio{ get; set;} // Ratio of W to H
 			
 		public static Vector2 displayOffset{ get; set;} // viewport offsets
 
@@ -34,8 +35,8 @@ namespace Tile_Engine
 			}
 			set
 			{
-				location = new Vector2(MathHelper.Clamp(value.X, 0f, worldWidth - ViewWidth + 200), // Remove + 200
-									   MathHelper.Clamp(value.Y, 0f, worldHeight - ViewHeight + 100)); // Remove + 100
+				location = new Vector2(MathHelper.Clamp(value.X, 0f, worldWidth - ViewWidth), // Remove + 200
+									   MathHelper.Clamp(value.Y, 0f, worldHeight - ViewHeight)); // Remove + 100
 			}
 		}
 
